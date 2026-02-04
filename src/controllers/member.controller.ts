@@ -48,7 +48,7 @@ export const getProjectMembers = async (
     const memberships = await ProjectMember.findAll({
       where: { projectId },
       include: [{ model: User, as: 'user', attributes: ['id', 'name', 'email', 'avatarUrl'] }],
-      order: [['joinedAt', 'ASC']],
+      order: [['createdAt', 'ASC']],
     });
 
     const members = [
@@ -66,7 +66,7 @@ export const getProjectMembers = async (
         email: m.user.email,
         avatarUrl: m.user.avatarUrl,
         role: m.role,
-        joinedAt: m.joinedAt,
+        joinedAt: m.createdAt,
       })),
     ];
 
@@ -144,7 +144,7 @@ export const addMember = async (
         email: newMember.email,
         avatarUrl: newMember.avatarUrl,
         role: membership.role,
-        joinedAt: membership.joinedAt,
+        joinedAt: membership.createdAt,
       },
     });
   } catch (error) {

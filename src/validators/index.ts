@@ -32,22 +32,26 @@ export const updateProjectSchema = z.object({
 
 // Bug schemas
 export const priorityEnum = z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']);
-export const statusEnum = z.enum(['OPEN', 'TRIAGE', 'IN_PROGRESS', 'CODE_REVIEW', 'QA_TESTING', 'DEPLOYED']);
-export const sourceEnum = z.enum(['USER_REPORTED', 'INTERNAL', 'AUTOMATED']);
+export const statusEnum = z.enum(['TRIAGE', 'IN_PROGRESS', 'CODE_REVIEW', 'QA_TESTING', 'DEPLOYED']);
+export const sourceEnum = z.enum(['CUSTOMER_REPORT', 'INTERNAL_QA', 'AUTOMATED_TEST', 'PRODUCTION_ALERT']);
 
 export const createBugSchema = z.object({
   title: z.string().min(3, 'Title must be at least 3 characters').max(500),
   description: z.string().max(5000).optional(),
   priority: priorityEnum.default('MEDIUM'),
   projectId: z.string().uuid(),
-  assigneeId: z.string().uuid().optional().nullable(),
+  source: sourceEnum.default('INTERNAL_QA'),
+  reporterEmail: z.string().email().optional().nullable(),
+  screenshots: z.array(z.string().url()).optional().nullable(),
 });
 
 export const updateBugSchema = z.object({
   title: z.string().min(3).max(500).optional(),
   description: z.string().max(5000).optional().nullable(),
   priority: priorityEnum.optional(),
-  assigneeId: z.string().uuid().optional().nullable(),
+  source: sourceEnum.optional(),
+  reporterEmail: z.string().email().optional().nullable(),
+  screenshots: z.array(z.string().url()).optional().nullable(),
 });
 
 export const updateBugStatusSchema = z.object({

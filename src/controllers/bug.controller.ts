@@ -39,7 +39,6 @@ export const getBugsByProject = async (
       where: { projectId },
       include: [
         { model: User, as: 'reporter', attributes: ['id', 'name', 'email', 'avatarUrl'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatarUrl'] },
       ],
       order: [['createdAt', 'DESC']],
     });
@@ -63,7 +62,6 @@ export const getBugById = async (
     const bug = await Bug.findByPk(id, {
       include: [
         { model: User, as: 'reporter', attributes: ['id', 'name', 'email', 'avatarUrl'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatarUrl'] },
         { model: Project, as: 'project' },
       ],
     });
@@ -99,7 +97,7 @@ export const createBug = async (
   next: NextFunction
 ): Promise<void> => {
   try {
-    const { title, description, priority, projectId, assigneeId } = req.body as CreateBugInput;
+    const { title, description, priority, projectId, source, reporterEmail, screenshots } = req.body as CreateBugInput;
     const userId = req.user!.id;
 
     // Check project exists and user has write access
@@ -125,33 +123,22 @@ export const createBug = async (
       return;
     }
 
-    // If assignee specified, verify they're a member
-    if (assigneeId) {
-      const assigneeIsMember = await ProjectMember.findOne({
-        where: { projectId, userId: assigneeId },
-      });
-      const assigneeIsOwner = project.ownerId === assigneeId;
-      if (!assigneeIsMember && !assigneeIsOwner) {
-        res.status(400).json({ error: 'Assignee is not a member of this project' });
-        return;
-      }
-    }
-
     const bug = await Bug.create({
       title,
       description: description || null,
       priority: priority || 'MEDIUM',
       projectId,
       reporterId: userId,
-      assigneeId: assigneeId || null,
-      status: 'OPEN',
+      source: source || 'INTERNAL_QA',
+      reporterEmail: reporterEmail || null,
+      screenshots: screenshots || null,
+      status: 'TRIAGE',
     });
 
     // Reload with associations
     await bug.reload({
       include: [
         { model: User, as: 'reporter', attributes: ['id', 'name', 'email', 'avatarUrl'] },
-        { model: User, as: 'assignee', attributes: ['id', 'name', 'email', 'avatarUrl'] },
       ],
     });
 
@@ -169,7 +156,7 @@ export const updateBug = async (
 ): Promise<void> => {
   try {
     const id = req.params.id as string;
-    const { title, description, priority, assigneeId } = req.body as UpdateBugInput;
+    const { title, description, priority, source, reporterEmail, screenshots } = req.body as UpdateBugInput;
     const userId = req.user!.id;
 
     const bug = await Bug.findByPk(id, {
@@ -203,7 +190,9 @@ export const updateBug = async (
     if (title !== undefined) bug.title = title;
     if (description !== undefined) bug.description = description;
     if (priority !== undefined) bug.priority = priority;
-    if (assigneeId !== undefined) bug.assigneeId = assigneeId || null;
+    if (source !== undefined) bug.source = source;
+    if (reporterEmail !== undefined) bug.reporterEmail = reporterEmail || null;
+    if (screenshots !== undefined) bug.screenshots = screenshots || null;
 
     await bug.save();
 

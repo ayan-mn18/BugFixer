@@ -12,10 +12,6 @@ Project.belongsTo(User, { foreignKey: 'ownerId', as: 'owner' });
 User.hasMany(Bug, { foreignKey: 'reporterId', as: 'reportedBugs' });
 Bug.belongsTo(User, { foreignKey: 'reporterId', as: 'reporter' });
 
-// User -> Bugs (Assignee)
-User.hasMany(Bug, { foreignKey: 'assigneeId', as: 'assignedBugs' });
-Bug.belongsTo(User, { foreignKey: 'assigneeId', as: 'assignee' });
-
 // Project -> Bugs
 Project.hasMany(Bug, { foreignKey: 'projectId', as: 'bugs' });
 Bug.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });

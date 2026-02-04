@@ -8,17 +8,21 @@ interface ProjectMemberAttributes {
   projectId: string;
   userId: string;
   role: MemberRole;
-  joinedAt?: Date;
+  invitedBy?: string | null;
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
-interface ProjectMemberCreationAttributes extends Optional<ProjectMemberAttributes, 'id' | 'role' | 'joinedAt'> {}
+interface ProjectMemberCreationAttributes extends Optional<ProjectMemberAttributes, 'id' | 'role' | 'invitedBy' | 'createdAt' | 'updatedAt'> {}
 
 class ProjectMember extends Model<ProjectMemberAttributes, ProjectMemberCreationAttributes> implements ProjectMemberAttributes {
   declare id: string;
   declare projectId: string;
   declare userId: string;
   declare role: MemberRole;
-  declare readonly joinedAt: Date;
+  declare invitedBy: string | null;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 ProjectMember.init(
@@ -42,17 +46,17 @@ ProjectMember.init(
       type: DataTypes.ENUM('VIEWER', 'MEMBER', 'ADMIN'),
       defaultValue: 'MEMBER',
     },
-    joinedAt: {
-      type: DataTypes.DATE,
-      defaultValue: DataTypes.NOW,
-      field: 'joined_at',
+    invitedBy: {
+      type: DataTypes.UUID,
+      allowNull: true,
+      field: 'invited_by',
     },
   },
   {
     sequelize,
     tableName: 'project_members',
     underscored: true,
-    timestamps: false,
+    timestamps: true,
     indexes: [
       {
         unique: true,
