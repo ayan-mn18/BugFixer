@@ -20,16 +20,16 @@ interface BugAttributes {
 interface BugCreationAttributes extends Optional<BugAttributes, 'id' | 'description' | 'priority' | 'status' | 'assigneeId' | 'createdAt' | 'updatedAt'> {}
 
 class Bug extends Model<BugAttributes, BugCreationAttributes> implements BugAttributes {
-  public id!: string;
-  public title!: string;
-  public description!: string | null;
-  public priority!: BugPriority;
-  public status!: BugStatus;
-  public projectId!: string;
-  public reporterId!: string;
-  public assigneeId!: string | null;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: string;
+  declare title: string;
+  declare description: string | null;
+  declare priority: BugPriority;
+  declare status: BugStatus;
+  declare projectId: string;
+  declare reporterId: string;
+  declare assigneeId: string | null;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Bug.init(

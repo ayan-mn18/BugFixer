@@ -16,13 +16,13 @@ interface AccessRequestAttributes {
 interface AccessRequestCreationAttributes extends Optional<AccessRequestAttributes, 'id' | 'message' | 'status' | 'createdAt' | 'updatedAt'> {}
 
 class AccessRequest extends Model<AccessRequestAttributes, AccessRequestCreationAttributes> implements AccessRequestAttributes {
-  public id!: string;
-  public projectId!: string;
-  public userId!: string;
-  public message!: string | null;
-  public status!: RequestStatus;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: string;
+  declare projectId: string;
+  declare userId: string;
+  declare message: string | null;
+  declare status: RequestStatus;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 AccessRequest.init(

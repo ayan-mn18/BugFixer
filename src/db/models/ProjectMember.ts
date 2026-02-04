@@ -14,11 +14,11 @@ interface ProjectMemberAttributes {
 interface ProjectMemberCreationAttributes extends Optional<ProjectMemberAttributes, 'id' | 'role' | 'joinedAt'> {}
 
 class ProjectMember extends Model<ProjectMemberAttributes, ProjectMemberCreationAttributes> implements ProjectMemberAttributes {
-  public id!: string;
-  public projectId!: string;
-  public userId!: string;
-  public role!: MemberRole;
-  public readonly joinedAt!: Date;
+  declare id: string;
+  declare projectId: string;
+  declare userId: string;
+  declare role: MemberRole;
+  declare readonly joinedAt: Date;
 }
 
 ProjectMember.init(

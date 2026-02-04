@@ -9,7 +9,7 @@ export const initializeDatabase = async () => {
     console.log('✅ Database connection established');
 
     // Sync all models (creates tables if they don't exist)
-    await sequelize.sync({ alter: false });
+    // await sequelize.sync({ alter: false });
     console.log('✅ Database models synchronized');
   } catch (error) {
     console.error('❌ Database initialization failed:', error);

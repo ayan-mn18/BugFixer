@@ -11,7 +11,12 @@ const sequelize = new Sequelize(config.database.url, {
     acquire: 30000,
     idle: 10000,
   },
-  ssl: { rejectUnauthorized: false },
+  dialectOptions: {
+    ssl: {
+      require: true,
+      rejectUnauthorized: false,
+    },
+  },
 });
 
 export default sequelize;

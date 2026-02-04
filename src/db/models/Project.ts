@@ -15,14 +15,14 @@ interface ProjectAttributes {
 interface ProjectCreationAttributes extends Optional<ProjectAttributes, 'id' | 'description' | 'isPublic' | 'createdAt' | 'updatedAt'> {}
 
 class Project extends Model<ProjectAttributes, ProjectCreationAttributes> implements ProjectAttributes {
-  public id!: string;
-  public name!: string;
-  public description!: string | null;
-  public slug!: string;
-  public isPublic!: boolean;
-  public ownerId!: string;
-  public readonly createdAt!: Date;
-  public readonly updatedAt!: Date;
+  declare id: string;
+  declare name: string;
+  declare description: string | null;
+  declare slug: string;
+  declare isPublic: boolean;
+  declare ownerId: string;
+  declare readonly createdAt: Date;
+  declare readonly updatedAt: Date;
 }
 
 Project.init(
