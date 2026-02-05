@@ -3,6 +3,7 @@ import Project from './Project';
 import Bug from './Bug';
 import ProjectMember from './ProjectMember';
 import AccessRequest from './AccessRequest';
+import Invitation from './Invitation';
 
 // User -> Projects (Owner)
 User.hasMany(Project, { foreignKey: 'ownerId', as: 'ownedProjects' });
@@ -36,4 +37,12 @@ AccessRequest.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 User.hasMany(AccessRequest, { foreignKey: 'userId', as: 'accessRequests' });
 AccessRequest.belongsTo(User, { foreignKey: 'userId', as: 'user' });
 
-export { User, Project, Bug, ProjectMember, AccessRequest };
+// Project -> Invitations
+Project.hasMany(Invitation, { foreignKey: 'projectId', as: 'invitations' });
+Invitation.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+// User -> Invitations (inviter)
+User.hasMany(Invitation, { foreignKey: 'invitedBy', as: 'sentInvitations' });
+Invitation.belongsTo(User, { foreignKey: 'invitedBy', as: 'inviter' });
+
+export { User, Project, Bug, ProjectMember, AccessRequest, Invitation };

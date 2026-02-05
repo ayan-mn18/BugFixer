@@ -1,7 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { Bug, Project, User, ProjectMember } from '../db';
 import { CreateBugInput, UpdateBugInput, UpdateBugStatusInput } from '../validators';
-import { sendBugResolvedEmail } from '../services/email.service';
+import { sendBugResolvedEmail, sendBugAssignedEmail } from '../services/email.service';
 
 // Get bugs for a project
 export const getBugsByProject = async (
@@ -246,10 +246,19 @@ export const updateBugStatus = async (
     bug.status = status;
     await bug.save();
 
+    // Get the user who changed the status (for the resolved email)
+    const resolver = await User.findByPk(userId, { attributes: ['id', 'name'] });
+
     // Send email notification when bug is deployed
     if (status === 'DEPLOYED' && reporter?.email) {
       try {
-        await sendBugResolvedEmail(reporter.email, reporter.name, bug.title, project.name);
+        await sendBugResolvedEmail(
+          reporter.email,
+          bug.title,
+          project.name,
+          resolver?.name || 'A team member',
+          bug.id
+        );
       } catch (emailError) {
         console.error('Failed to send bug resolved email:', emailError);
       }

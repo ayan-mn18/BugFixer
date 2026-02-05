@@ -37,12 +37,12 @@ export const config = {
   
   // Email
   email: {
-    host: process.env.SMTP_HOST || 'smtp.gmail.com',
+    host: process.env.SMTP_HOST || 'smtp-relay.brevo.com',
     port: parseInt(process.env.SMTP_PORT || '587', 10),
     secure: process.env.SMTP_SECURE === 'true',
-    user: process.env.SMTP_USER || '',
-    pass: process.env.SMTP_PASS || '',
-    from: process.env.EMAIL_FROM || 'BugFixer <noreply@bugfixer.com>',
+    user: process.env.SMTP_LOGIN || '',
+    pass: process.env.SMTP_KEY || '',
+    from: process.env.EMAIL_FROM || 'BugFixer <no-reply@fix.bizer.dev>',
   },
 };
 

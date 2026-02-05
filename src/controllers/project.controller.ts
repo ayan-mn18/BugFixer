@@ -1,6 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
-import { Op } from 'sequelize';
-import { Project, User, Bug, ProjectMember } from '../db';
+import { Op, QueryTypes } from 'sequelize';
+import { Project, User, Bug, ProjectMember, sequelize } from '../db';
 import { CreateProjectInput, UpdateProjectInput } from '../validators';
 
 // Helper to generate slug
@@ -20,26 +20,26 @@ export const getMyProjects = async (
   try {
     const userId = req.user!.id;
 
-    // Get owned projects
-    const ownedProjects = await Project.findAll({
-      where: { ownerId: userId },
-      include: [
-        { model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatarUrl'] },
-      ],
-      order: [['updatedAt', 'DESC']],
-    });
-
-    // Get member projects
-    const memberships = await ProjectMember.findAll({
-      where: { userId },
-      include: [
-        {
-          model: Project,
-          as: 'project',
-          include: [{ model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatarUrl'] }],
-        },
-      ],
-    });
+    // Fetch owned and member projects in parallel
+    const [ownedProjects, memberships] = await Promise.all([
+      Project.findAll({
+        where: { ownerId: userId },
+        include: [
+          { model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatarUrl'] },
+        ],
+        order: [['updatedAt', 'DESC']],
+      }),
+      ProjectMember.findAll({
+        where: { userId },
+        include: [
+          {
+            model: Project,
+            as: 'project',
+            include: [{ model: User, as: 'owner', attributes: ['id', 'name', 'email', 'avatarUrl'] }],
+          },
+        ],
+      }),
+    ]);
 
     const memberProjects = memberships
       .map((m: any) => m.project)
@@ -48,20 +48,49 @@ export const getMyProjects = async (
     // Combine and dedupe
     const allProjects = [...ownedProjects, ...memberProjects];
 
-    // Add bug counts
-    const projectsWithCounts = await Promise.all(
-      allProjects.map(async (project: any) => {
-        const bugCount = await Bug.count({ where: { projectId: project.id } });
-        const openBugCount = await Bug.count({
-          where: { projectId: project.id, status: { [Op.ne]: 'DEPLOYED' } },
+    if (allProjects.length === 0) {
+      res.json({ projects: [] });
+      return;
+    }
+
+    // Get all project IDs
+    const projectIds = allProjects.map((p: any) => p.id);
+
+    // Batch fetch bug counts using raw SQL for efficiency
+    const [bugCounts] = await sequelize.query(`
+      SELECT 
+        project_id,
+        COUNT(*) as total_count,
+        COUNT(*) FILTER (WHERE status != 'DEPLOYED') as open_count
+      FROM bugs 
+      WHERE project_id IN (:projectIds)
+      GROUP BY project_id
+    `, {
+      replacements: { projectIds },
+      type: QueryTypes.SELECT,
+      raw: true,
+    }) as any;
+
+    // Create a map for quick lookup
+    const countsMap = new Map<string, { total: number; open: number }>();
+    if (Array.isArray(bugCounts)) {
+      bugCounts.forEach((row: any) => {
+        countsMap.set(row.project_id, {
+          total: parseInt(row.total_count) || 0,
+          open: parseInt(row.open_count) || 0,
         });
-        return {
-          ...project.toJSON(),
-          bugCount,
-          openBugCount,
-        };
-      })
-    );
+      });
+    }
+
+    // Combine projects with counts
+    const projectsWithCounts = allProjects.map((project: any) => {
+      const counts = countsMap.get(project.id) || { total: 0, open: 0 };
+      return {
+        ...project.toJSON(),
+        bugCount: counts.total,
+        openBugCount: counts.open,
+      };
+    });
 
     res.json({ projects: projectsWithCounts });
   } catch (error) {
@@ -84,20 +113,31 @@ export const getPublicProjects = async (
       order: [['createdAt', 'DESC']],
     });
 
-    // Add bug counts
-    const projectsWithCounts = await Promise.all(
-      projects.map(async (project) => {
-        const bugCount = await Bug.count({ where: { projectId: project.id } });
-        const openBugCount = await Bug.count({
-          where: { projectId: project.id, status: { [Op.ne]: 'DEPLOYED' } },
-        });
-        return {
-          ...project.toJSON(),
-          bugCount,
-          openBugCount,
-        };
-      })
+    if (projects.length === 0) {
+      res.json({ projects: [] });
+      return;
+    }
+
+    // Batch fetch bug counts using raw SQL for efficiency
+    const projectIds = projects.map((p) => p.id);
+    const bugCounts = await sequelize.query<{ project_id: string; total_count: string; open_count: string }>(
+      `SELECT project_id, COUNT(*) as total_count,
+       COUNT(*) FILTER (WHERE status != 'DEPLOYED') as open_count
+       FROM bugs WHERE project_id IN (:projectIds) GROUP BY project_id`,
+      { replacements: { projectIds }, type: QueryTypes.SELECT, raw: true }
     );
+
+    // Create a map for quick lookup
+    const countMap = new Map(bugCounts.map((c) => [c.project_id, c]));
+
+    const projectsWithCounts = projects.map((project) => {
+      const counts = countMap.get(project.id);
+      return {
+        ...project.toJSON(),
+        bugCount: counts ? parseInt(counts.total_count, 10) : 0,
+        openBugCount: counts ? parseInt(counts.open_count, 10) : 0,
+      };
+    });
 
     res.json({ projects: projectsWithCounts });
   } catch (error) {
@@ -115,6 +155,7 @@ export const getProjectBySlug = async (
     const { slug } = req.params;
     const userId = req.user?.id;
 
+    // Fetch project with owner
     const project = await Project.findOne({
       where: { slug },
       include: [
@@ -127,32 +168,26 @@ export const getProjectBySlug = async (
       return;
     }
 
-    // Check access
+    // Check access and get counts in parallel
     const isOwner = userId === project.ownerId;
-    let isMember = false;
-    let userRole = null;
+    
+    // Run membership check and bug counts in parallel
+    const [membership, bugCount, openBugCount] = await Promise.all([
+      userId && !isOwner 
+        ? ProjectMember.findOne({ where: { projectId: project.id, userId } })
+        : Promise.resolve(null),
+      Bug.count({ where: { projectId: project.id } }),
+      Bug.count({ where: { projectId: project.id, status: { [Op.ne]: 'DEPLOYED' } } }),
+    ]);
 
-    if (userId && !isOwner) {
-      const membership = await ProjectMember.findOne({
-        where: { projectId: project.id, userId },
-      });
-      if (membership) {
-        isMember = true;
-        userRole = membership.role;
-      }
-    }
+    const isMember = !!membership;
+    const userRole = membership?.role || null;
 
     // If private and no access, deny
     if (!project.isPublic && !isOwner && !isMember) {
       res.status(403).json({ error: 'Access denied' });
       return;
     }
-
-    // Get bug counts
-    const bugCount = await Bug.count({ where: { projectId: project.id } });
-    const openBugCount = await Bug.count({
-      where: { projectId: project.id, status: { [Op.ne]: 'DEPLOYED' } },
-    });
 
     res.json({
       project: {

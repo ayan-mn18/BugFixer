@@ -1,5 +1,5 @@
 import sequelize from './sequelize';
-import { User, Project, Bug, ProjectMember, AccessRequest } from './models';
+import { User, Project, Bug, ProjectMember, AccessRequest, Invitation } from './models';
 
 // Initialize database - sync models
 export const initializeDatabase = async () => {
@@ -18,5 +18,5 @@ export const initializeDatabase = async () => {
 };
 
 // Export sequelize instance and models
-export { sequelize, User, Project, Bug, ProjectMember, AccessRequest };
+export { sequelize, User, Project, Bug, ProjectMember, AccessRequest, Invitation };
 export default sequelize;

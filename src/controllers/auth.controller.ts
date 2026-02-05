@@ -1,8 +1,54 @@
 import { Request, Response, NextFunction } from 'express';
 import bcrypt from 'bcryptjs';
-import { User } from '../db';
+import { Op } from 'sequelize';
+import { User, Invitation, ProjectMember } from '../db';
 import { SignupInput, LoginInput, UpdateProfileInput } from '../validators';
 import { generateToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.middleware';
+import { sendWelcomeEmail, sendLoginNotificationEmail } from '../services/email.service';
+
+// Helper function to process pending invitations for a user
+const processPendingInvitations = async (userId: string, email: string): Promise<number> => {
+  try {
+    // Find all pending invitations for this email
+    const pendingInvitations = await Invitation.findAll({
+      where: {
+        email: email.toLowerCase(),
+        status: 'PENDING',
+        expiresAt: { [Op.gt]: new Date() }
+      }
+    });
+
+    let processedCount = 0;
+
+    for (const invitation of pendingInvitations) {
+      // Check if user is already a member
+      const existingMember = await ProjectMember.findOne({
+        where: {
+          projectId: invitation.projectId,
+          userId: userId
+        }
+      });
+
+      if (!existingMember) {
+        // Add user as project member
+        await ProjectMember.create({
+          projectId: invitation.projectId,
+          userId: userId,
+          role: invitation.role
+        });
+        processedCount++;
+      }
+
+      // Mark invitation as accepted
+      await invitation.update({ status: 'ACCEPTED' });
+    }
+
+    return processedCount;
+  } catch (error) {
+    console.error('Error processing pending invitations:', error);
+    return 0;
+  }
+};
 
 // Sign up
 export const signup = async (
@@ -30,9 +76,16 @@ export const signup = async (
       name,
     });
 
+    // Process any pending invitations for this email
+    const invitationsProcessed = await processPendingInvitations(user.id, email);
+    console.log(`Processed ${invitationsProcessed} pending invitations for ${email}`);
+
     // Generate token and set cookie
     const token = generateToken(user.id, user.email);
     setAuthCookie(res, token);
+
+    // Send welcome email (don't await to avoid slowing down signup)
+    sendWelcomeEmail(user.email, user.name || 'there').catch(console.error);
 
     res.status(201).json({
       user: {
@@ -41,6 +94,7 @@ export const signup = async (
         name: user.name,
         avatarUrl: user.avatarUrl,
       },
+      invitationsProcessed, // Let frontend know how many invites were auto-accepted
     });
   } catch (error) {
     next(error);
@@ -73,6 +127,11 @@ export const login = async (
     // Generate token and set cookie
     const token = generateToken(user.id, user.email);
     setAuthCookie(res, token);
+
+    // Send login notification email (don't await to avoid slowing down login)
+    const userAgent = req.headers['user-agent'] || 'Unknown device';
+    const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
+    sendLoginNotificationEmail(user.email, user.name || 'there', userAgent, ipAddress).catch(console.error);
 
     res.json({
       user: {
