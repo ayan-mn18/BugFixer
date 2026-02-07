@@ -1,31 +1,80 @@
-# This workflow will do a clean installation of node dependencies, cache/restore them, build the source code and run tests across different versions of node
-# For more information see: https://docs.github.com/en/actions/automating-builds-and-tests/building-and-testing-nodejs
+# Azure VM Deployment Workflow
+# This workflow deploys the BugFixer application to an Azure VM
+# using a self-hosted GitHub Actions runner
 
-name: Node.js CI
+name: BugFixer Azure Deploy
 
 on:
   push:
     branches: [ "main" ]
-  pull_request:
-    branches: [ "main" ]
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
-  build:
-
-    runs-on: [self-hosted, bug-fixer]
+  build-and-deploy:
+    runs-on: [self-hosted, bug-fixer]  # Runs on your Azure VM runner
 
     strategy:
       matrix:
         node-version: [22.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
 
     steps:
-    - uses: actions/checkout@v4
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: 📥 Checkout code
+      uses: actions/checkout@v4
+
+    - name: 🟢 Use Node.js ${{ matrix.node-version }}
       uses: actions/setup-node@v4
       with:
         node-version: ${{ matrix.node-version }}
         cache: 'npm'
-    - run: npm ci
-    - run: npm run build --if-present
-    - run: npm test
+
+    - name: 📦 Install dependencies
+      run: npm ci
+
+    - name: 🔐 Create .env file
+      run: |
+        touch .env
+        echo "${{ secrets.BUGFIXER_PROD }}" > .env
+
+    - name: 🛠️ Build project
+      run: npm run build --if-present
+
+    - name: 📦 Install PM2 globally (if not exists)
+      run: |
+        if ! command -v pm2 &> /dev/null; then
+          echo "📦 Installing PM2..."
+          npm i -g pm2
+        else
+          echo "✅ PM2 already installed"
+        fi
+
+    - name: 🛑 Stop and delete existing BugFixer PM2 process
+      run: |
+        if pm2 describe bugfixer > /dev/null 2>&1; then
+          echo "🛑 Stopping existing bugfixer process..."
+          pm2 stop bugfixer
+          pm2 delete bugfixer
+          echo "✅ Existing bugfixer process stopped and deleted"
+        else
+          echo "ℹ️ No existing bugfixer process found"
+        fi
+
+    - name: 🚀 Start new BugFixer PM2 process
+      run: |
+        echo "🚀 Starting new bugfixer process..."
+        pm2 start dist/server.js --name bugfixer
+        pm2 save
+        echo "✅ bugfixer started successfully"
+
+    - name: 🔍 Verify deployment
+      run: |
+        echo "📊 PM2 Status:"
+        pm2 status
+        echo ""
+        echo "🔍 Checking if BugFixer is running..."
+        sleep 5
+        if pm2 describe bugfixer | grep -q "online"; then
+          echo "✅ BugFixer is running successfully!"
+        else
+          echo "❌ BugFixer may have issues. Check logs with: pm2 logs bugfixer"
+          exit 1
+        fi
