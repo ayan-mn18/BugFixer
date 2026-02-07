@@ -61,7 +61,7 @@ jobs:
     - name: 🚀 Start new BugFixer PM2 process
       run: |
         echo "🚀 Starting new bugfixer process..."
-        pm2 start dist/server.js --name bugfixer
+        pm2 start dist/index.js --name bugfixer
         pm2 save
         echo "✅ bugfixer started successfully"
 
