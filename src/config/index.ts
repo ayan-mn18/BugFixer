@@ -7,10 +7,15 @@ dotenv.config({ path: path.join(__dirname, '../../.env') });
 export const config = {
   // Server
   nodeEnv: process.env.NODE_ENV || 'development',
-  port: parseInt(process.env.PORT || '3001', 10),
+  port: parseInt(process.env.PORT || '7070', 10),
   
   // Frontend
   frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  
+  // Allowed origins (supports comma-separated list for multiple origins)
+  allowedOrigins: (process.env.FRONTEND_URL || 'http://localhost:5173')
+    .split(',')
+    .map((url) => url.trim()),
   
   // Database
   database: {
@@ -31,7 +36,9 @@ export const config = {
   
   // CORS
   cors: {
-    origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+    origin: (process.env.FRONTEND_URL || 'http://localhost:5173')
+      .split(',')
+      .map((url) => url.trim()),
     credentials: true,
   },
   
