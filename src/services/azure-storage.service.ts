@@ -23,10 +23,14 @@ import {
   generateBlobSASQueryParameters,
 } from '@azure/storage-blob';
 
-// Configuration - to be set in .env
-const AZURE_STORAGE_ACCOUNT_NAME = process.env.AZURE_STORAGE_ACCOUNT_NAME || '';
-const AZURE_STORAGE_ACCOUNT_KEY = process.env.AZURE_STORAGE_ACCOUNT_KEY || '';
-const AZURE_STORAGE_CONNECTION_STRING = process.env.AZURE_STORAGE_CONNECTION_STRING || '';
+// Configuration - read lazily to ensure dotenv has loaded
+function getStorageConfig() {
+  return {
+    accountName: (process.env.AZURE_STORAGE_ACCOUNT_NAME || '').trim(),
+    accountKey: (process.env.AZURE_STORAGE_ACCOUNT_KEY || '').trim(),
+    connectionString: (process.env.AZURE_STORAGE_CONNECTION_STRING || '').trim(),
+  };
+}
 const CONTAINER_NAME = 'bug-screenshots';
 
 // Allowed image MIME types
@@ -60,17 +64,19 @@ interface UploadResult {
  * Get the blob service client
  */
 function getBlobServiceClient(): BlobServiceClient {
-  if (AZURE_STORAGE_CONNECTION_STRING) {
-    return BlobServiceClient.fromConnectionString(AZURE_STORAGE_CONNECTION_STRING);
+  const { accountName, accountKey, connectionString } = getStorageConfig();
+
+  if (connectionString) {
+    return BlobServiceClient.fromConnectionString(connectionString);
   }
   
-  if (AZURE_STORAGE_ACCOUNT_NAME && AZURE_STORAGE_ACCOUNT_KEY) {
+  if (accountName && accountKey) {
     const sharedKeyCredential = new StorageSharedKeyCredential(
-      AZURE_STORAGE_ACCOUNT_NAME,
-      AZURE_STORAGE_ACCOUNT_KEY
+      accountName,
+      accountKey
     );
     return new BlobServiceClient(
-      `https://${AZURE_STORAGE_ACCOUNT_NAME}.blob.core.windows.net`,
+      `https://${accountName}.blob.core.windows.net`,
       sharedKeyCredential
     );
   }
@@ -151,6 +157,9 @@ export async function uploadImage(
   const blockBlobClient = containerClient.getBlockBlobClient(blobName);
   
   // Upload the file
+  // Sanitize metadata values - Azure HMAC signing breaks with non-ASCII chars
+  const safeOriginalName = file.originalname.replace(/[^\x20-\x7E]/g, '_');
+  
   await blockBlobClient.uploadData(file.buffer, {
     blobHTTPHeaders: {
       blobContentType: file.mimetype,
@@ -159,8 +168,8 @@ export async function uploadImage(
     metadata: {
       projectId,
       bugId: bugId || 'pending',
-      originalName: file.originalname,
-      uploadedAt: new Date().toISOString(),
+      originalname: safeOriginalName,
+      uploadedat: new Date().toISOString(),
     },
   });
   
@@ -273,7 +282,9 @@ export async function movePendingImages(
  * Generate a SAS URL for temporary access (if container is private)
  */
 export function generateSasUrl(blobUrl: string, expiryMinutes: number = 60): string {
-  if (!AZURE_STORAGE_ACCOUNT_NAME || !AZURE_STORAGE_ACCOUNT_KEY) {
+  const { accountName, accountKey } = getStorageConfig();
+
+  if (!accountName || !accountKey) {
     return blobUrl; // Return original URL if we can't generate SAS
   }
   
@@ -282,8 +293,8 @@ export function generateSasUrl(blobUrl: string, expiryMinutes: number = 60): str
     const blobName = url.pathname.replace(`/${CONTAINER_NAME}/`, '');
     
     const sharedKeyCredential = new StorageSharedKeyCredential(
-      AZURE_STORAGE_ACCOUNT_NAME,
-      AZURE_STORAGE_ACCOUNT_KEY
+      accountName,
+      accountKey
     );
     
     const expiresOn = new Date();
@@ -309,18 +320,20 @@ export function generateSasUrl(blobUrl: string, expiryMinutes: number = 60): str
  * Check if Azure Storage is configured
  */
 export function isAzureStorageConfigured(): boolean {
-  return !!(AZURE_STORAGE_CONNECTION_STRING || (AZURE_STORAGE_ACCOUNT_NAME && AZURE_STORAGE_ACCOUNT_KEY));
+  const { accountName, accountKey, connectionString } = getStorageConfig();
+  return !!(connectionString || (accountName && accountKey));
 }
 
 /**
  * Get configuration status for debugging
  */
 export function getConfigStatus(): { configured: boolean; details: string } {
-  if (AZURE_STORAGE_CONNECTION_STRING) {
+  const { accountName, accountKey, connectionString } = getStorageConfig();
+  if (connectionString) {
     return { configured: true, details: 'Using connection string' };
   }
-  if (AZURE_STORAGE_ACCOUNT_NAME && AZURE_STORAGE_ACCOUNT_KEY) {
-    return { configured: true, details: `Using account: ${AZURE_STORAGE_ACCOUNT_NAME}` };
+  if (accountName && accountKey) {
+    return { configured: true, details: `Using account: ${accountName}` };
   }
   return { configured: false, details: 'No credentials configured' };
 }
