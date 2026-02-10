@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import crypto from 'crypto';
 import { User, Project, ProjectMember, AccessRequest, Invitation } from '../db';
 import { AddMemberInput, UpdateMemberRoleInput, CreateAccessRequestInput } from '../validators';
+import logger from '../lib/logger';
 import {
   sendAccessRequestApprovedEmail,
   sendAccessRequestRejectedEmail,
@@ -256,7 +257,7 @@ export const updateMemberRole = async (
     try {
       await sendRoleChangedEmail(memberUser.email, project.name, oldRole, role);
     } catch (emailError) {
-      console.error('Failed to send role change email:', emailError);
+      logger.error({ err: emailError }, 'Failed to send role change email');
     }
 
     res.json({ message: 'Member role updated successfully' });
@@ -307,7 +308,7 @@ export const removeMember = async (
       try {
         await sendMemberRemovedEmail(memberUser.email, project.name);
       } catch (emailError) {
-        console.error('Failed to send member removal email:', emailError);
+        logger.error({ err: emailError }, 'Failed to send member removal email');
       }
     }
 
@@ -382,7 +383,7 @@ export const requestAccess = async (
         message || ''
       );
     } catch (emailError) {
-      console.error('Failed to send access request email:', emailError);
+      logger.error({ err: emailError }, 'Failed to send access request email');
     }
 
     res.status(201).json({ accessRequest });
@@ -485,7 +486,7 @@ export const approveAccessRequest = async (
     try {
       await sendAccessRequestApprovedEmail(requestUser.email, project.name, 'MEMBER');
     } catch (emailError) {
-      console.error('Failed to send approval email:', emailError);
+      logger.error({ err: emailError }, 'Failed to send approval email');
     }
 
     res.json({ message: 'Access request approved' });
@@ -537,7 +538,7 @@ export const rejectAccessRequest = async (
     try {
       await sendAccessRequestRejectedEmail(requestUser.email, project.name);
     } catch (emailError) {
-      console.error('Failed to send rejection email:', emailError);
+      logger.error({ err: emailError }, 'Failed to send rejection email');
     }
 
     res.json({ message: 'Access request rejected' });

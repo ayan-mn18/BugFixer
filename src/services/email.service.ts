@@ -1,5 +1,6 @@
 import nodemailer from 'nodemailer';
 import config from '../config';
+import logger from '../lib/logger';
 
 // Create transporter
 const transporter = nodemailer.createTransport({
@@ -15,9 +16,9 @@ const transporter = nodemailer.createTransport({
 // Verify connection
 transporter.verify((error) => {
   if (error) {
-    console.error('❌ Email service not configured:', error.message);
+    logger.warn({ err: error }, 'Email service not configured');
   } else {
-    console.log('✅ Email service ready');
+    logger.info('Email service ready');
   }
 });
 
@@ -31,10 +32,7 @@ interface EmailOptions {
 export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
   // Skip sending in development if not configured
   if (config.nodeEnv === 'development' && !config.email.user) {
-    console.log('📧 Email would be sent (skipped in dev):', {
-      to: options.to,
-      subject: options.subject,
-    });
+    logger.debug({ to: options.to, subject: options.subject }, 'Email skipped in dev');
     return true;
   }
 
@@ -46,10 +44,10 @@ export const sendEmail = async (options: EmailOptions): Promise<boolean> => {
       html: options.html,
       text: options.text,
     });
-    console.log('✅ Email sent to:', options.to);
+    logger.info({ to: options.to }, 'Email sent');
     return true;
   } catch (error) {
-    console.error('❌ Failed to send email:', error);
+    logger.error({ err: error, to: options.to }, 'Failed to send email');
     return false;
   }
 };

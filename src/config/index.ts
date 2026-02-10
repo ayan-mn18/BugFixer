@@ -51,6 +51,11 @@ export const config = {
     pass: process.env.SMTP_KEY || '',
     from: process.env.EMAIL_FROM || 'BugFixer <no-reply@fix.bizer.dev>',
   },
+  
+  // BetterStack (Logtail)
+  betterStack: {
+    sourceToken: process.env.BETTERSTACK_SOURCE_TOKEN || '',
+  },
 };
 
 export default config;

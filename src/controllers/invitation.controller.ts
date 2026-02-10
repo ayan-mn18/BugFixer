@@ -1,6 +1,7 @@
 import { Request, Response } from 'express';
 import { Op } from 'sequelize';
 import { Invitation, User, Project, ProjectMember } from '../db';
+import logger from '../lib/logger';
 
 // Get invitation details by token (public - for viewing invite before accepting)
 export const getInvitation = async (req: Request, res: Response) => {
@@ -46,7 +47,7 @@ export const getInvitation = async (req: Request, res: Response) => {
       }
     });
   } catch (error) {
-    console.error('Get invitation error:', error);
+    logger.error({ err: error }, 'Get invitation error');
     return res.status(500).json({
       success: false,
       message: 'Failed to get invitation'
@@ -140,7 +141,7 @@ export const acceptInvitation = async (req: Request, res: Response) => {
       projectSlug: project?.slug
     });
   } catch (error) {
-    console.error('Accept invitation error:', error);
+    logger.error({ err: error }, 'Accept invitation error');
     return res.status(500).json({
       success: false,
       message: 'Failed to accept invitation'
@@ -203,7 +204,7 @@ export const getMyInvitations = async (req: Request, res: Response) => {
       }))
     });
   } catch (error) {
-    console.error('Get my invitations error:', error);
+    logger.error({ err: error }, 'Get my invitations error');
     return res.status(500).json({
       success: false,
       message: 'Failed to get invitations'

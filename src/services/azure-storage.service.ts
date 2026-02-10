@@ -22,6 +22,7 @@ import {
   BlobSASPermissions,
   generateBlobSASQueryParameters,
 } from '@azure/storage-blob';
+import logger from '../lib/logger';
 
 // Configuration - read lazily to ensure dotenv has loaded
 function getStorageConfig() {
@@ -214,7 +215,7 @@ export async function deleteImage(blobUrl: string): Promise<void> {
     const blockBlobClient = containerClient.getBlockBlobClient(blobName);
     await blockBlobClient.deleteIfExists();
   } catch (error) {
-    console.error('Error deleting image:', error);
+    logger.error({ err: error, blobUrl }, 'Error deleting image');
     // Don't throw - deletion failure shouldn't break the app
   }
 }
@@ -270,7 +271,7 @@ export async function movePendingImages(
       const newSasUrl = generateSasUrl(newBlobClient.url, 60 * 24 * 365); // 1 year
       newUrls.push(newSasUrl);
     } catch (error) {
-      console.error('Error moving image:', error);
+      logger.error({ err: error, oldUrl }, 'Error moving image');
       newUrls.push(oldUrl); // Keep old URL if move fails
     }
   }

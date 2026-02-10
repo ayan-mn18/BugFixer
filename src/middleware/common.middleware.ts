@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { ZodError, ZodSchema, ZodIssue } from 'zod';
+import logger from '../lib/logger';
 
 // Validation middleware factory
 export const validate = (schema: ZodSchema) => {
@@ -28,7 +29,7 @@ export const errorHandler = (
   res: Response,
   _next: NextFunction
 ): void => {
-  console.error('❌ Error:', err);
+  logger.error({ err, method: req.method, path: req.originalUrl }, 'Unhandled error');
 
   if (err.name === 'UnauthorizedError') {
     res.status(401).json({ error: 'Unauthorized' });
@@ -56,7 +57,7 @@ export const requestLogger = (
   
   res.on('finish', () => {
     const duration = Date.now() - start;
-    console.log(`${req.method} ${req.path} ${res.statusCode} - ${duration}ms`);
+    logger.info({ method: req.method, path: req.path, status: res.statusCode, duration: `${duration}ms` }, `${req.method} ${req.path} ${res.statusCode}`);
   });
   
   next();

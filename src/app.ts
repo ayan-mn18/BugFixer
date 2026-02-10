@@ -1,49 +1,12 @@
 import express, { Application } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
-import morgan from 'morgan';
-import chalk from 'chalk';
 import config from './config';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/common.middleware';
+import logger from './lib/logger';
 
 const app: Application = express();
-
-// Colorful Morgan logging
-const morganFormat = (tokens: any, req: any, res: any) => {
-  const status = parseInt(tokens.status(req, res) || '0', 10);
-  const method = tokens.method(req, res);
-  const url = tokens.url(req, res);
-  const responseTime = tokens['response-time'](req, res);
-  const contentLength = tokens.res(req, res, 'content-length') || '-';
-
-  // Color the status code
-  let statusColor = chalk.green;
-  if (status >= 500) statusColor = chalk.red;
-  else if (status >= 400) statusColor = chalk.yellow;
-  else if (status >= 300) statusColor = chalk.cyan;
-
-  // Color the method
-  const methodColors: Record<string, typeof chalk.green> = {
-    GET: chalk.green,
-    POST: chalk.blue,
-    PUT: chalk.yellow,
-    PATCH: chalk.magenta,
-    DELETE: chalk.red,
-  };
-  const methodColor = methodColors[method] || chalk.white;
-
-  return [
-    chalk.gray('→'),
-    methodColor.bold(method.padEnd(7)),
-    statusColor.bold(status),
-    chalk.white(url),
-    chalk.gray('|'),
-    chalk.cyan(`${responseTime}ms`),
-    chalk.gray('|'),
-    chalk.gray(`${contentLength}b`),
-  ].join(' ');
-};
 
 // CORS configuration - Allow frontend origin(s) with credentials
 app.use(
@@ -71,8 +34,30 @@ app.use(express.urlencoded({ extended: true }));
 // Parse cookies
 app.use(cookieParser());
 
-// Morgan logging
-app.use(morgan(morganFormat as any));
+// Structured request logging with Pino → BetterStack
+app.use((req, res, next) => {
+  const start = Date.now();
+  res.on('finish', () => {
+    const duration = Date.now() - start;
+    const logData = {
+      method: req.method,
+      path: req.originalUrl,
+      status: res.statusCode,
+      duration: `${duration}ms`,
+      contentLength: res.get('content-length') || '-',
+      userAgent: req.get('user-agent'),
+      ip: req.ip,
+    };
+    if (res.statusCode >= 500) {
+      logger.error(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
+    } else if (res.statusCode >= 400) {
+      logger.warn(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
+    } else {
+      logger.info(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
+    }
+  });
+  next();
+});
 
 // Health check endpoint
 app.get('/health', (_req, res) => {

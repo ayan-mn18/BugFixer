@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { Bug, Project, User, ProjectMember } from '../db';
 import { CreateBugInput, UpdateBugInput, UpdateBugStatusInput } from '../validators';
 import { sendBugResolvedEmail, sendBugAssignedEmail } from '../services/email.service';
+import logger from '../lib/logger';
 
 // Get bugs for a project
 export const getBugsByProject = async (
@@ -260,7 +261,7 @@ export const updateBugStatus = async (
           bug.id
         );
       } catch (emailError) {
-        console.error('Failed to send bug resolved email:', emailError);
+        logger.error({ err: emailError }, 'Failed to send bug resolved email');
       }
     }
 

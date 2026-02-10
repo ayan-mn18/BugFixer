@@ -1,18 +1,19 @@
 import sequelize from './sequelize';
 import { User, Project, Bug, ProjectMember, AccessRequest, Invitation } from './models';
+import logger from '../lib/logger';
 
 // Initialize database - sync models
 export const initializeDatabase = async () => {
   try {
     // Test connection
     await sequelize.authenticate();
-    console.log('✅ Database connection established');
+    logger.info('Database connection established');
 
     // Sync all models (creates tables if they don't exist)
     // await sequelize.sync({ alter: false });
-    console.log('✅ Database models synchronized');
+    logger.info('Database models synchronized');
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
+    logger.error({ err: error }, 'Database initialization failed');
     throw error;
   }
 };

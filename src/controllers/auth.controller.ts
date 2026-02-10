@@ -5,6 +5,7 @@ import { User, Invitation, ProjectMember } from '../db';
 import { SignupInput, LoginInput, UpdateProfileInput } from '../validators';
 import { generateToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.middleware';
 import { sendWelcomeEmail, sendLoginNotificationEmail } from '../services/email.service';
+import logger from '../lib/logger';
 
 // Helper function to process pending invitations for a user
 const processPendingInvitations = async (userId: string, email: string): Promise<number> => {
@@ -45,7 +46,7 @@ const processPendingInvitations = async (userId: string, email: string): Promise
 
     return processedCount;
   } catch (error) {
-    console.error('Error processing pending invitations:', error);
+    logger.error({ err: error }, 'Error processing pending invitations');
     return 0;
   }
 };
@@ -78,14 +79,14 @@ export const signup = async (
 
     // Process any pending invitations for this email
     const invitationsProcessed = await processPendingInvitations(user.id, email);
-    console.log(`Processed ${invitationsProcessed} pending invitations for ${email}`);
+    logger.info({ email, invitationsProcessed }, `Processed ${invitationsProcessed} pending invitations`);
 
     // Generate token and set cookie
     const token = generateToken(user.id, user.email);
     setAuthCookie(res, token);
 
     // Send welcome email (don't await to avoid slowing down signup)
-    sendWelcomeEmail(user.email, user.name || 'there').catch(console.error);
+    sendWelcomeEmail(user.email, user.name || 'there').catch((err) => logger.error({ err }, 'Failed to send welcome email'));
 
     res.status(201).json({
       user: {
@@ -131,7 +132,7 @@ export const login = async (
     // Send login notification email (don't await to avoid slowing down login)
     const userAgent = req.headers['user-agent'] || 'Unknown device';
     const ipAddress = req.ip || req.socket.remoteAddress || 'Unknown IP';
-    sendLoginNotificationEmail(user.email, user.name || 'there', userAgent, ipAddress).catch(console.error);
+    sendLoginNotificationEmail(user.email, user.name || 'there', userAgent, ipAddress).catch((err) => logger.error({ err }, 'Failed to send login notification email'));
 
     res.json({
       user: {
