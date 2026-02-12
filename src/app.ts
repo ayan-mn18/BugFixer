@@ -34,26 +34,34 @@ app.use(express.urlencoded({ extended: true }));
 // Parse cookies
 app.use(cookieParser());
 
-// Structured request logging with Pino → BetterStack
+// Request logging — Morgan-style in dev, structured JSON in production
 app.use((req, res, next) => {
   const start = Date.now();
   res.on('finish', () => {
     const duration = Date.now() - start;
-    const logData = {
-      method: req.method,
-      path: req.originalUrl,
-      status: res.statusCode,
-      duration: `${duration}ms`,
-      contentLength: res.get('content-length') || '-',
-      userAgent: req.get('user-agent'),
-      ip: req.ip,
-    };
-    if (res.statusCode >= 500) {
-      logger.error(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
-    } else if (res.statusCode >= 400) {
-      logger.warn(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
+    const status = res.statusCode;
+    const len = res.get('content-length') || '-';
+
+    // Compact Morgan-style message for dev, full structured data for prod
+    const msg = `${req.method} ${req.originalUrl} ${status} ${duration}ms - ${len}`;
+    const logData = config.nodeEnv === 'development'
+      ? {}
+      : {
+          method: req.method,
+          path: req.originalUrl,
+          status,
+          duration: `${duration}ms`,
+          contentLength: len,
+          userAgent: req.get('user-agent'),
+          ip: req.ip,
+        };
+
+    if (status >= 500) {
+      logger.error(logData, msg);
+    } else if (status >= 400) {
+      logger.warn(logData, msg);
     } else {
-      logger.info(logData, `${req.method} ${req.originalUrl} ${res.statusCode}`);
+      logger.info(logData, msg);
     }
   });
   next();

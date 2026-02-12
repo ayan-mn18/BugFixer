@@ -16,14 +16,16 @@ let logtailWarned = false;
 function createLogger() {
   const targets: pino.TransportTargetOptions[] = [];
 
-  // Pretty console output for development
+  // Pretty console output for development (Morgan-style compact output)
   if (config.nodeEnv === 'development') {
     targets.push({
       target: 'pino-pretty',
       options: {
         colorize: true,
         translateTime: 'HH:MM:ss',
-        ignore: 'pid,hostname',
+        ignore: 'pid,hostname,env,service',
+        messageFormat: '{msg}',
+        hideObject: true,
       },
       level: 'debug',
     });
@@ -36,8 +38,8 @@ function createLogger() {
     });
   }
 
-  // BetterStack Logtail — send logs in all environments if token is set
-  if (config.betterStack.sourceToken) {
+  // BetterStack Logtail — only in production if token is set
+  if (config.nodeEnv === 'production' && config.betterStack.sourceToken) {
     targets.push({
       target: '@logtail/pino',
       options: { sourceToken: config.betterStack.sourceToken },
