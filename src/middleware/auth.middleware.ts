@@ -21,6 +21,41 @@ export interface JwtPayload {
   email: string;
 }
 
+// ─── Lightweight user cache (avoids DB query on every auth'd request) ────────
+interface CachedUser {
+  id: string;
+  email: string;
+  name: string;
+  cachedAt: number;
+}
+
+const userCache = new Map<string, CachedUser>();
+const USER_CACHE_TTL = 5 * 60_000; // 5 minutes
+
+function getCachedUser(userId: string): CachedUser | null {
+  const cached = userCache.get(userId);
+  if (!cached) return null;
+  if (Date.now() - cached.cachedAt > USER_CACHE_TTL) {
+    userCache.delete(userId);
+    return null;
+  }
+  return cached;
+}
+
+function setCachedUser(user: { id: string; email: string; name: string }): void {
+  // Evict old entries if cache grows too large
+  if (userCache.size > 500) {
+    const oldest = userCache.keys().next().value;
+    if (oldest) userCache.delete(oldest);
+  }
+  userCache.set(user.id, { ...user, cachedAt: Date.now() });
+}
+
+// Exported so profile-update can invalidate
+export function invalidateUserCache(userId: string): void {
+  userCache.delete(userId);
+}
+
 // Verify JWT token from cookie
 export const authenticate = async (
   req: Request,
@@ -37,7 +72,15 @@ export const authenticate = async (
 
     const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
 
-    // Get user from database
+    // Check cache first — avoid DB roundtrip
+    const cached = getCachedUser(decoded.userId);
+    if (cached) {
+      req.user = { id: cached.id, email: cached.email, name: cached.name };
+      next();
+      return;
+    }
+
+    // Cache miss — query DB
     const user = await User.findByPk(decoded.userId, {
       attributes: ['id', 'email', 'name', 'avatarUrl'],
     });
@@ -47,11 +90,9 @@ export const authenticate = async (
       return;
     }
 
-    req.user = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-    };
+    const userData = { id: user.id, email: user.email, name: user.name };
+    setCachedUser(userData);
+    req.user = userData;
 
     next();
   } catch (error) {
@@ -78,16 +119,23 @@ export const optionalAuth = async (
 
     if (token) {
       const decoded = jwt.verify(token, config.jwt.secret) as JwtPayload;
+
+      // Check cache first
+      const cached = getCachedUser(decoded.userId);
+      if (cached) {
+        req.user = { id: cached.id, email: cached.email, name: cached.name };
+        next();
+        return;
+      }
+
       const user = await User.findByPk(decoded.userId, {
         attributes: ['id', 'email', 'name'],
       });
 
       if (user) {
-        req.user = {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
+        const userData = { id: user.id, email: user.email, name: user.name };
+        setCachedUser(userData);
+        req.user = userData;
       }
     }
 

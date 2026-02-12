@@ -57,7 +57,7 @@ export const getMyProjects = async (
     const projectIds = allProjects.map((p: any) => p.id);
 
     // Batch fetch bug counts using raw SQL for efficiency
-    const [bugCounts] = await sequelize.query(`
+    const bugCounts = await sequelize.query(`
       SELECT 
         project_id,
         COUNT(*) as total_count,

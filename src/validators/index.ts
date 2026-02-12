@@ -80,6 +80,44 @@ export const reviewAccessRequestSchema = z.object({
   role: memberRoleEnum.optional(), // Only used if approved
 });
 
+// Widget schemas
+export const createWidgetBugSchema = z.object({
+  title: z.string().min(3, 'Title must be at least 3 characters').max(500),
+  description: z.string().max(5000).optional(),
+  priority: priorityEnum.default('MEDIUM'),
+  source: sourceEnum.default('CUSTOMER_REPORT'),
+  reporterEmail: z.string().email().optional().nullable(),
+  screenshots: z.array(z.string().url()).optional().nullable(),
+});
+
+export const updateWidgetSettingsSchema = z.object({
+  allowedOrigins: z.array(z.string()).optional(),
+  enabled: z.boolean().optional(),
+});
+
+// GitHub schemas
+export const connectRepoSchema = z.object({
+  repoOwner: z.string().min(1),
+  repoName: z.string().min(1),
+  repoFullName: z.string().min(1),
+  isDefault: z.boolean().optional().default(false),
+  autoCreateIssues: z.boolean().optional().default(true),
+  labelSync: z.boolean().optional().default(false),
+});
+
+// Agent config schemas
+const aiProviderEnum = z.enum(['OPENAI', 'ANTHROPIC', 'GEMINI']);
+
+export const updateAgentConfigSchema = z.object({
+  enabled: z.boolean().optional(),
+  aiProvider: aiProviderEnum.optional(),
+  aiModel: z.string().max(100).optional(),
+  systemPrompt: z.string().max(5000).optional().nullable(),
+  autoAssign: z.boolean().optional(),
+  targetBranch: z.string().max(255).optional(),
+  prBranchPrefix: z.string().max(100).optional(),
+});
+
 // Type exports
 export type SignupInput = z.infer<typeof signupSchema>;
 export type LoginInput = z.infer<typeof loginSchema>;
@@ -93,3 +131,7 @@ export type AddMemberInput = z.infer<typeof addMemberSchema>;
 export type UpdateMemberRoleInput = z.infer<typeof updateMemberRoleSchema>;
 export type CreateAccessRequestInput = z.infer<typeof createAccessRequestSchema>;
 export type ReviewAccessRequestInput = z.infer<typeof reviewAccessRequestSchema>;
+export type CreateWidgetBugInput = z.infer<typeof createWidgetBugSchema>;
+export type UpdateWidgetSettingsInput = z.infer<typeof updateWidgetSettingsSchema>;
+export type ConnectRepoInput = z.infer<typeof connectRepoSchema>;
+export type UpdateAgentConfigInput = z.infer<typeof updateAgentConfigSchema>;

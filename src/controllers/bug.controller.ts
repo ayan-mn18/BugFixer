@@ -1,7 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { Bug, Project, User, ProjectMember } from '../db';
+import { Bug, Project, User, ProjectMember, GitHubIntegration, GitHubRepo } from '../db';
 import { CreateBugInput, UpdateBugInput, UpdateBugStatusInput } from '../validators';
 import { sendBugResolvedEmail, sendBugAssignedEmail } from '../services/email.service';
+import * as githubService from '../services/github.service';
 import logger from '../lib/logger';
 
 // Get bugs for a project
@@ -135,6 +136,47 @@ export const createBug = async (
       screenshots: screenshots || null,
       status: 'TRIAGE',
     });
+
+    // Auto-create GitHub issue if integration is connected
+    try {
+      const integration = await GitHubIntegration.findOne({ where: { projectId } });
+      if (integration) {
+        const defaultRepo = await GitHubRepo.findOne({
+          where: { integrationId: integration.id, autoCreateIssues: true, isDefault: true },
+        });
+        const targetRepo = defaultRepo || await GitHubRepo.findOne({
+          where: { integrationId: integration.id, autoCreateIssues: true },
+        });
+
+        if (targetRepo) {
+          const priorityLabel = `bugfixer:${(priority || 'MEDIUM').toLowerCase()}`;
+          const issueBody = [
+            description || '',
+            '',
+            '---',
+            `**Priority:** ${priority || 'MEDIUM'}`,
+            `**Source:** ${source || 'INTERNAL_QA'}`,
+            `**BugFixer ID:** \`${bug.id}\``,
+          ].join('\n');
+
+          const issue = await githubService.createGitHubIssue({
+            encryptedToken: integration.githubAccessToken,
+            owner: targetRepo.repoOwner,
+            repo: targetRepo.repoName,
+            title,
+            body: issueBody,
+            labels: ['bugfixer', priorityLabel],
+          });
+
+          bug.githubIssueNumber = issue.number;
+          bug.githubIssueUrl = issue.url;
+          bug.githubRepoFullName = targetRepo.repoFullName;
+          await bug.save();
+        }
+      }
+    } catch (ghError) {
+      logger.warn({ err: ghError, bugId: bug.id }, 'Failed to create GitHub issue — bug saved without issue link');
+    }
 
     // Reload with associations
     await bug.reload({

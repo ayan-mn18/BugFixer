@@ -4,19 +4,58 @@ import cookieParser from 'cookie-parser';
 import config from './config';
 import routes from './routes';
 import { errorHandler, notFoundHandler } from './middleware/common.middleware';
+import { WidgetToken } from './db';
 import logger from './lib/logger';
 
 const app: Application = express();
 
-// CORS configuration - Allow frontend origin(s) with credentials
+// ─── Cached widget origins (refreshed every 60s, avoids DB query per request) ─
+let cachedWidgetOrigins: Set<string> = new Set();
+let widgetOriginsCacheTime = 0;
+const WIDGET_CACHE_TTL = 60_000; // 60 seconds
+
+async function getWidgetOrigins(): Promise<Set<string>> {
+  const now = Date.now();
+  if (now - widgetOriginsCacheTime < WIDGET_CACHE_TTL) {
+    return cachedWidgetOrigins;
+  }
+  try {
+    const widgets = await WidgetToken.findAll({
+      where: { enabled: true },
+      attributes: ['allowedOrigins'],
+    });
+    const origins = new Set<string>();
+    for (const w of widgets) {
+      for (const o of w.allowedOrigins) {
+        origins.add(o);
+      }
+    }
+    cachedWidgetOrigins = origins;
+    widgetOriginsCacheTime = now;
+  } catch {
+    // If DB isn't ready, keep stale cache
+  }
+  return cachedWidgetOrigins;
+}
+
+// CORS configuration
 app.use(
   cors({
-    origin: (origin, callback) => {
-      // Allow requests with no origin (mobile apps, curl, etc.)
+    origin: async (origin, callback) => {
+      // Allow requests with no origin (mobile apps, curl, Postman, etc.)
       if (!origin) return callback(null, true);
+
+      // Always allow configured frontend origins (fast, no DB)
       if (config.allowedOrigins.includes(origin)) {
         return callback(null, true);
       }
+
+      // Check cached widget origins (single DB query, cached 60s)
+      const widgetOrigins = await getWidgetOrigins();
+      if (widgetOrigins.has(origin) || widgetOrigins.has('*')) {
+        return callback(null, true);
+      }
+
       return callback(new Error(`Origin ${origin} not allowed by CORS`));
     },
     credentials: true,

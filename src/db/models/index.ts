@@ -4,6 +4,10 @@ import Bug from './Bug';
 import ProjectMember from './ProjectMember';
 import AccessRequest from './AccessRequest';
 import Invitation from './Invitation';
+import WidgetToken from './WidgetToken';
+import GitHubIntegration from './GitHubIntegration';
+import GitHubRepo from './GitHubRepo';
+import AgentConfig from './AgentConfig';
 
 // User -> Projects (Owner)
 User.hasMany(Project, { foreignKey: 'ownerId', as: 'ownedProjects' });
@@ -45,4 +49,24 @@ Invitation.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
 User.hasMany(Invitation, { foreignKey: 'invitedBy', as: 'sentInvitations' });
 Invitation.belongsTo(User, { foreignKey: 'invitedBy', as: 'inviter' });
 
-export { User, Project, Bug, ProjectMember, AccessRequest, Invitation };
+// Project -> WidgetToken (one-to-one)
+Project.hasOne(WidgetToken, { foreignKey: 'projectId', as: 'widgetToken' });
+WidgetToken.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+// Project -> GitHubIntegration (one-to-one)
+Project.hasOne(GitHubIntegration, { foreignKey: 'projectId', as: 'githubIntegration' });
+GitHubIntegration.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+// User -> GitHubIntegration (connected by)
+User.hasMany(GitHubIntegration, { foreignKey: 'connectedBy', as: 'githubIntegrations' });
+GitHubIntegration.belongsTo(User, { foreignKey: 'connectedBy', as: 'connectedByUser' });
+
+// GitHubIntegration -> GitHubRepo (one-to-many)
+GitHubIntegration.hasMany(GitHubRepo, { foreignKey: 'integrationId', as: 'repos' });
+GitHubRepo.belongsTo(GitHubIntegration, { foreignKey: 'integrationId', as: 'integration' });
+
+// Project -> AgentConfig (one-to-one)
+Project.hasOne(AgentConfig, { foreignKey: 'projectId', as: 'agentConfig' });
+AgentConfig.belongsTo(Project, { foreignKey: 'projectId', as: 'project' });
+
+export { User, Project, Bug, ProjectMember, AccessRequest, Invitation, WidgetToken, GitHubIntegration, GitHubRepo, AgentConfig };

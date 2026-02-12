@@ -3,7 +3,7 @@ import bcrypt from 'bcryptjs';
 import { Op } from 'sequelize';
 import { User, Invitation, ProjectMember } from '../db';
 import { SignupInput, LoginInput, UpdateProfileInput } from '../validators';
-import { generateToken, setAuthCookie, clearAuthCookie } from '../middleware/auth.middleware';
+import { generateToken, setAuthCookie, clearAuthCookie, invalidateUserCache } from '../middleware/auth.middleware';
 import { sendWelcomeEmail, sendLoginNotificationEmail } from '../services/email.service';
 import logger from '../lib/logger';
 
@@ -202,6 +202,9 @@ export const updateProfile = async (
     if (avatarUrl !== undefined) user.avatarUrl = avatarUrl;
 
     await user.save();
+
+    // Invalidate auth cache so subsequent requests pick up new name
+    invalidateUserCache(userId);
 
     res.json({
       user: {

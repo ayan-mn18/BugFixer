@@ -4,6 +4,7 @@ import sequelize from '../sequelize';
 export type BugPriority = 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
 export type BugStatus = 'TRIAGE' | 'IN_PROGRESS' | 'CODE_REVIEW' | 'QA_TESTING' | 'DEPLOYED';
 export type BugSource = 'CUSTOMER_REPORT' | 'INTERNAL_QA' | 'AUTOMATED_TEST' | 'PRODUCTION_ALERT';
+export type AgentPRStatus = 'PENDING' | 'IN_PROGRESS' | 'PR_CREATED' | 'MERGED' | 'FAILED';
 
 interface BugAttributes {
   id: string;
@@ -16,11 +17,21 @@ interface BugAttributes {
   screenshots?: string[] | null;
   projectId: string;
   reporterId?: string | null;
+  // GitHub integration fields
+  githubIssueNumber?: number | null;
+  githubIssueUrl?: string | null;
+  githubRepoFullName?: string | null;
+  // AI agent fields
+  agentPrBranch?: string | null;
+  agentPrUrl?: string | null;
+  agentPrNumber?: number | null;
+  agentPrStatus?: AgentPRStatus | null;
+  agentTargetBranch?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
 }
 
-interface BugCreationAttributes extends Optional<BugAttributes, 'id' | 'description' | 'priority' | 'status' | 'source' | 'reporterEmail' | 'screenshots' | 'reporterId' | 'createdAt' | 'updatedAt'> {}
+interface BugCreationAttributes extends Optional<BugAttributes, 'id' | 'description' | 'priority' | 'status' | 'source' | 'reporterEmail' | 'screenshots' | 'reporterId' | 'githubIssueNumber' | 'githubIssueUrl' | 'githubRepoFullName' | 'agentPrBranch' | 'agentPrUrl' | 'agentPrNumber' | 'agentPrStatus' | 'agentTargetBranch' | 'createdAt' | 'updatedAt'> {}
 
 class Bug extends Model<BugAttributes, BugCreationAttributes> implements BugAttributes {
   declare id: string;
@@ -33,6 +44,16 @@ class Bug extends Model<BugAttributes, BugCreationAttributes> implements BugAttr
   declare screenshots: string[] | null;
   declare projectId: string;
   declare reporterId: string | null;
+  // GitHub integration fields
+  declare githubIssueNumber: number | null;
+  declare githubIssueUrl: string | null;
+  declare githubRepoFullName: string | null;
+  // AI agent fields
+  declare agentPrBranch: string | null;
+  declare agentPrUrl: string | null;
+  declare agentPrNumber: number | null;
+  declare agentPrStatus: AgentPRStatus | null;
+  declare agentTargetBranch: string | null;
   declare readonly createdAt: Date;
   declare readonly updatedAt: Date;
 }
@@ -82,6 +103,48 @@ Bug.init(
       type: DataTypes.UUID,
       allowNull: true,
       field: 'reporter_id',
+    },
+    // GitHub integration fields
+    githubIssueNumber: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'github_issue_number',
+    },
+    githubIssueUrl: {
+      type: DataTypes.STRING(1024),
+      allowNull: true,
+      field: 'github_issue_url',
+    },
+    githubRepoFullName: {
+      type: DataTypes.STRING(512),
+      allowNull: true,
+      field: 'github_repo_full_name',
+    },
+    // AI agent fields
+    agentPrBranch: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'agent_pr_branch',
+    },
+    agentPrUrl: {
+      type: DataTypes.STRING(1024),
+      allowNull: true,
+      field: 'agent_pr_url',
+    },
+    agentPrNumber: {
+      type: DataTypes.INTEGER,
+      allowNull: true,
+      field: 'agent_pr_number',
+    },
+    agentPrStatus: {
+      type: DataTypes.ENUM('PENDING', 'IN_PROGRESS', 'PR_CREATED', 'MERGED', 'FAILED'),
+      allowNull: true,
+      field: 'agent_pr_status',
+    },
+    agentTargetBranch: {
+      type: DataTypes.STRING(255),
+      allowNull: true,
+      field: 'agent_target_branch',
     },
   },
   {

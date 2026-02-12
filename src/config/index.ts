@@ -56,6 +56,16 @@ export const config = {
   betterStack: {
     sourceToken: process.env.BETTERSTACK_SOURCE_TOKEN || '',
   },
+
+  // GitHub OAuth
+  github: {
+    clientId: process.env.GITHUB_CLIENT_ID || '',
+    clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
+    callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:7070/api/github/callback',
+  },
+
+  // Encryption key for storing tokens at rest (32-byte hex string)
+  encryptionKey: process.env.ENCRYPTION_KEY || 'a]J7$mZq4t7w!z%C*F-JaNcRfUjXn2r5',
 };
 
 export default config;

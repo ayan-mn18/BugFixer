@@ -1,5 +1,5 @@
 import sequelize from './sequelize';
-import { User, Project, Bug, ProjectMember, AccessRequest, Invitation } from './models';
+import { User, Project, Bug, ProjectMember, AccessRequest, Invitation, WidgetToken, GitHubIntegration, GitHubRepo, AgentConfig } from './models';
 import logger from '../lib/logger';
 
 // Initialize database - sync models
@@ -19,5 +19,5 @@ export const initializeDatabase = async () => {
 };
 
 // Export sequelize instance and models
-export { sequelize, User, Project, Bug, ProjectMember, AccessRequest, Invitation };
+export { sequelize, User, Project, Bug, ProjectMember, AccessRequest, Invitation, WidgetToken, GitHubIntegration, GitHubRepo, AgentConfig };
 export default sequelize;
