@@ -8,6 +8,7 @@ import uploadRoutes from './upload.routes';
 import widgetRoutes from './widget.routes';
 import githubRoutes from './github.routes';
 import agentConfigRoutes from './agent-config.routes';
+import webhookRoutes from './webhook.routes';
 
 const router = Router();
 
@@ -20,5 +21,6 @@ router.use('/upload', uploadRoutes);
 router.use('/widget', widgetRoutes);
 router.use('/github', githubRoutes);
 router.use('/agent-config', agentConfigRoutes);
+router.use('/webhooks', webhookRoutes);
 
 export default router;

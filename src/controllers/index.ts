@@ -5,3 +5,4 @@ export * from './member.controller';
 export * from './widget.controller';
 export * from './github.controller';
 export * from './agent-config.controller';
+export * from './webhook.controller';

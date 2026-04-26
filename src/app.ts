@@ -64,8 +64,17 @@ app.use(
   })
 );
 
-// Parse JSON bodies
-app.use(express.json());
+// Parse JSON bodies (capture raw body for webhook signature verification)
+app.use(
+  express.json({
+    verify: (req: any, _res, buf) => {
+      // Store raw body for webhook signature verification
+      if (req.originalUrl?.startsWith('/api/webhooks/')) {
+        req.rawBody = buf.toString();
+      }
+    },
+  })
+);
 
 // Parse URL-encoded bodies
 app.use(express.urlencoded({ extended: true }));

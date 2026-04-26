@@ -1,5 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
-import { Bug, Project, User, ProjectMember, GitHubIntegration, GitHubRepo } from '../db';
+import { Bug, Project, User, ProjectMember, GitHubIntegration, GitHubRepo, AgentConfig } from '../db';
 import { CreateBugInput, UpdateBugInput, UpdateBugStatusInput } from '../validators';
 import { sendBugResolvedEmail, sendBugAssignedEmail } from '../services/email.service';
 import * as githubService from '../services/github.service';
@@ -150,14 +150,34 @@ export const createBug = async (
 
         if (targetRepo) {
           const priorityLabel = `bugfixer:${(priority || 'MEDIUM').toLowerCase()}`;
-          const issueBody = [
+
+          // Build issue body with description, metadata, and screenshots
+          const bodyParts = [
             description || '',
             '',
             '---',
             `**Priority:** ${priority || 'MEDIUM'}`,
             `**Source:** ${source || 'INTERNAL_QA'}`,
             `**BugFixer ID:** \`${bug.id}\``,
-          ].join('\n');
+          ];
+
+          // Append screenshots as Markdown images so Copilot agent can see them
+          if (screenshots?.length) {
+            bodyParts.push('', '### Screenshots');
+            screenshots.forEach((url, i) => {
+              bodyParts.push(`![Screenshot ${i + 1}](${url})`);
+            });
+          }
+
+          const issueBody = bodyParts.join('\n');
+
+          // Check AgentConfig to decide whether to auto-assign to Copilot
+          const agentConfig = await AgentConfig.findOne({ where: { projectId } });
+          const assignees: string[] = [];
+          if (!agentConfig || agentConfig.autoAssign) {
+            // Default: auto-assign to GitHub Copilot coding agent
+            assignees.push('copilot');
+          }
 
           const issue = await githubService.createGitHubIssue({
             encryptedToken: integration.githubAccessToken,
@@ -166,6 +186,7 @@ export const createBug = async (
             title,
             body: issueBody,
             labels: ['bugfixer', priorityLabel],
+            assignees,
           });
 
           bug.githubIssueNumber = issue.number;

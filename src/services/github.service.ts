@@ -101,6 +101,7 @@ interface CreateIssueParams {
   title: string;
   body?: string;
   labels?: string[];
+  assignees?: string[];
 }
 
 export const createGitHubIssue = async (
@@ -115,6 +116,7 @@ export const createGitHubIssue = async (
       title: params.title,
       body: params.body || '',
       labels: params.labels || [],
+      assignees: params.assignees || [],
     });
 
     return { number: data.number, url: data.html_url };

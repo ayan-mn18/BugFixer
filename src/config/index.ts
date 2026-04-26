@@ -62,6 +62,7 @@ export const config = {
     clientId: process.env.GITHUB_CLIENT_ID || '',
     clientSecret: process.env.GITHUB_CLIENT_SECRET || '',
     callbackUrl: process.env.GITHUB_CALLBACK_URL || 'http://localhost:7070/api/github/callback',
+    webhookSecret: process.env.GITHUB_WEBHOOK_SECRET || '',
   },
 
   // Encryption key for storing tokens at rest (32-byte hex string)
