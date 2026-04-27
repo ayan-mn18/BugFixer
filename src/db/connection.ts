@@ -15,7 +15,7 @@ const buildPostgresUrl = (hostPort: string, databaseName: string, search = '') =
 };
 
 const normalizeJdbcUrl = (rawUrl: string) => {
-  const jdbcPayload = rawUrl.slice(JDBC_PREFIX.length).trim();
+  const jdbcPayload = rawUrl.slice(JDBC_PREFIX.length).trim(); 
 
   if (POSTGRES_PROTOCOL_REGEX.test(jdbcPayload)) {
     return jdbcPayload;
