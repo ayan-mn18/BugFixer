@@ -1,9 +1,13 @@
 import { Sequelize } from 'sequelize';
 import config from '../config';
 import logger from '../lib/logger';
+import { resolveDatabaseUrl, shouldUseSsl } from './connection';
+
+const databaseUrl = resolveDatabaseUrl();
+const sslEnabled = shouldUseSsl(databaseUrl);
 
 // Create Sequelize instance
-const sequelize = new Sequelize(config.database.url, {
+const sequelize = new Sequelize(databaseUrl, {
   dialect: 'postgres',
   logging: config.nodeEnv === 'development' ? (msg) => logger.debug(msg) : false,
   pool: {
@@ -14,11 +18,15 @@ const sequelize = new Sequelize(config.database.url, {
     evict: 10000,     // Check for stale connections every 10 seconds
   },
   dialectOptions: {
-    ssl: {
-      require: true,
-      rejectUnauthorized: false,
-    },
-    // Keep connections alive with Azure
+    ...(sslEnabled
+      ? {
+          ssl: {
+            require: true,
+            rejectUnauthorized: false,
+          },
+        }
+      : {}),
+    // Keep connections alive with managed PostgreSQL hosts
     keepAlive: true,
     keepAliveInitialDelayMillis: 10000,
   },

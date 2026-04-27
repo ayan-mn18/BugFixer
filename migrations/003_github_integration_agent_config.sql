@@ -33,7 +33,12 @@ CREATE TABLE IF NOT EXISTS github_repos (
 CREATE INDEX IF NOT EXISTS idx_github_repos_integration ON github_repos(integration_id);
 
 -- ─── Agent Configs (one per project) ─────────────────────────────────
-CREATE TYPE ai_provider_enum AS ENUM ('OPENAI', 'ANTHROPIC', 'GEMINI');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'ai_provider_enum') THEN
+        CREATE TYPE ai_provider_enum AS ENUM ('OPENAI', 'ANTHROPIC', 'GEMINI');
+    END IF;
+END$$;
 
 CREATE TABLE IF NOT EXISTS agent_configs (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -50,7 +55,12 @@ CREATE TABLE IF NOT EXISTS agent_configs (
 );
 
 -- ─── New columns on bugs table ───────────────────────────────────────
-CREATE TYPE agent_pr_status_enum AS ENUM ('PENDING', 'IN_PROGRESS', 'PR_CREATED', 'MERGED', 'FAILED');
+DO $$
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'agent_pr_status_enum') THEN
+        CREATE TYPE agent_pr_status_enum AS ENUM ('PENDING', 'IN_PROGRESS', 'PR_CREATED', 'MERGED', 'FAILED');
+    END IF;
+END$$;
 
 ALTER TABLE bugs
   ADD COLUMN IF NOT EXISTS github_issue_number INTEGER,
